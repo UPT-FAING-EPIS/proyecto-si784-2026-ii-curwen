@@ -2,6 +2,7 @@
 TARE-IA: Tareas académicas con reconocimiento y ejecución mediante IA.
 
 2. Problema detallado con fuentes
+   
 En el entorno educativo universitario, los estudiantes reciben información académica fragmentada a través de múltiples canales simultáneos, tales como plataformas LMS (Moodle), correos institucionales, grupos de WhatsApp y documentos sueltos. Esta dispersión genera una sobrecarga que dificulta la consolidación de un cronograma único y eficiente.
 
 Evidencia del problema: Sobrecarga cognitiva y el mito del "multitasking"
