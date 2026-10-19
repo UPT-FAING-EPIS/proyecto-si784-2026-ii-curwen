@@ -1,3 +1,34 @@
+# TARE-IA
+
+Aplicaci�n Android para organizar actividades acad�micas. Proyecto del equipo CURWEN.
+
+## Descargar e instalar
+
+[Descargar la versi�n de demostraci�n](https://github.com/UPT-FAING-EPIS/proyecto-si784-2026-ii-curwen/releases)
+
+1. Abrir la publicaci�n m�s reciente y descargar `TARE-IA.apk`.
+2. Abrir el archivo en un tel�fono con Android 9 o posterior.
+3. Si Android lo solicita, permitir la instalaci�n desde la aplicaci�n utilizada para descargarlo.
+
+La versi�n de demostraci�n incluye Inicio, Apuntes, Tareas, Calendario y Perfil. Las tareas se mantienen en memoria y se reinician al cerrar el proceso de la aplicaci�n. La extracci�n mediante IA y la sincronizaci�n con Google Calendar est�n pendientes.
+
+## Documentaci�n
+
+- [FD01 � Factibilidad](docs/unidad-i/FD01-Informe-de-Factibilidad.pdf)
+- [FD02 � Visi�n](docs/unidad-i/FD02-Informe-de-Vision.pdf)
+- [FD03 � SRS](docs/unidad-i/FD03-Informe-SRS.pdf)
+- [C�digo Android](android/)
+
+Los archivos Word y Markdown FD01�FD06 de la ra�z son los formatos del docente. No se ha incorporado un informe FD04 del equipo.
+
+## Desarrollo y publicaci�n
+
+La rama principal es `main`. El c�digo se encuentra en `android/`. Para compilar: `gradle -p android assembleDebug` (Gradle 8.9). Se requiere Java 17 y Android SDK 35.
+
+Los cambios en `android/` enviados a `main` ejecutan la compilaci�n, el an�lisis de Android y la publicaci�n de un APK de demostraci�n en GitHub Releases. Tambi�n se puede ejecutar **Publicar Android** desde la pesta�a Actions.
+
+## Planteamiento del proyecto
+
 1. Título
 TARE-IA: Tareas académicas con reconocimiento y ejecución mediante IA.
 
@@ -48,4 +79,5 @@ Google for Developers. (2026). Google Calendar API Documentation - Overview.
 Kirschner, P. A., & De Bruyckere, P. (2017). The myths of the digital native and the multitasker. Teaching and Teacher Education, 67, 135-142.
 
 Steel, P. (2007). The nature of procrastination: A meta-analytic and theoretical review of quintessential self-regulatory failure. Psychological Bulletin, 133(1), 65-94.
+
 
