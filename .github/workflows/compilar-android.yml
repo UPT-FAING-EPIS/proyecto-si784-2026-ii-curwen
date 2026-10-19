@@ -1,0 +1,66 @@
+name: Compilar Android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/compilar-android.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/compilar-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
+          cache-disabled: true
+      - name: Compilar y verificar
+        run: gradle -p android --no-daemon assembleDebug lintDebug
+      - name: Preparar APK y Gradle Wrapper
+        run: |
+          gradle -p android wrapper --gradle-version 8.9 --distribution-type bin
+          mkdir -p publicacion
+          cp android/app/build/outputs/apk/debug/app-debug.apk publicacion/TARE-IA.apk
+          cd publicacion
+          sha256sum TARE-IA.apk > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TARE-IA-Android
+          path: publicacion/
+          retention-days: 1
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gradle-Wrapper
+          path: |
+            android/gradlew
+            android/gradlew.bat
+            android/gradle/wrapper/
+          retention-days: 1
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Informe-Android
+          path: android/app/build/reports/
+          retention-days: 1
