@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: tareia
+      POSTGRES_USER: tareia
+      POSTGRES_PASSWORD: tareia
+    ports: ["5432:5432"]
+    volumes: ["tareia_pg:/var/lib/postgresql/data"]
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: tareia
+      MINIO_ROOT_PASSWORD: tareia123
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["tareia_minio:/data"]
+volumes:
+  tareia_pg:
+  tareia_minio:
