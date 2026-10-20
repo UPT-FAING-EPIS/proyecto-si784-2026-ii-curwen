@@ -1,31 +1,31 @@
 # TARE-IA
 
-Aplicaci�n Android para organizar actividades acad�micas. Proyecto del equipo CURWEN.
+Aplicación Android para organizar actividades académicas. Proyecto del equipo CURWEN.
 
 ## Descargar e instalar
 
-[Descargar la versi�n de demostraci�n](https://github.com/UPT-FAING-EPIS/proyecto-si784-2026-ii-curwen/releases)
+[Descargar la versión de demostración](https://github.com/UPT-FAING-EPIS/proyecto-si784-2026-ii-curwen/releases)
 
-1. Abrir la publicaci�n m�s reciente y descargar `TARE-IA.apk`.
-2. Abrir el archivo en un tel�fono con Android 9 o posterior.
-3. Si Android lo solicita, permitir la instalaci�n desde la aplicaci�n utilizada para descargarlo.
+1. Abrir la publicación más reciente y descargar `TARE-IA.apk`.
+2. Abrir el archivo en un teléfono con Android 9 o posterior.
+3. Si Android lo solicita, permitir la instalación desde la aplicación utilizada para descargarlo.
 
-La versi�n de demostraci�n incluye Inicio, Apuntes, Tareas, Calendario y Perfil. Las tareas se mantienen en memoria y se reinician al cerrar el proceso de la aplicaci�n. La extracci�n mediante IA y la sincronizaci�n con Google Calendar est�n pendientes.
+La aplicación incluye inicio de sesión y registro, captura de documentos, tareas, calendario, cursos, progreso, notificaciones, horario y preferencias. Esta entrega funciona con datos de demostración en memoria. La extracción real mediante IA, la autenticación y la sincronización externa siguen pendientes de integración.
 
-## Documentaci�n
+## Documentación
 
-- [FD01 � Factibilidad](docs/unidad-i/FD01-Informe-de-Factibilidad.pdf)
-- [FD02 � Visi�n](docs/unidad-i/FD02-Informe-de-Vision.pdf)
-- [FD03 � SRS](docs/unidad-i/FD03-Informe-SRS.pdf)
-- [C�digo Android](android/)
+- [FD01 — Factibilidad](docs/unidad-i/FD01-Informe-de-Factibilidad.pdf)
+- [FD02 — Visión](docs/unidad-i/FD02-Informe-de-Vision.pdf)
+- [FD03 — SRS](docs/unidad-i/FD03-Informe-SRS.pdf)
+- [Código Android](android/)
 
-Los archivos Word y Markdown FD01�FD06 de la ra�z son los formatos del docente. No se ha incorporado un informe FD04 del equipo.
+Los archivos Word y Markdown FD01–FD06 de la raíz son los formatos del docente. No se ha incorporado un informe FD04 del equipo.
 
-## Desarrollo y publicaci�n
+## Desarrollo y publicación
 
-La rama principal es `main`. El c�digo se encuentra en `android/`. Para compilar: `gradle -p android assembleDebug` (Gradle 8.9). Se requiere Java 17 y Android SDK 35.
+La rama principal es `main`. Abrir la carpeta `android/` en Android Studio y seguir [las instrucciones para Windows](android/ABRIR-EN-WINDOWS.md). Se utilizan Gradle 8.11.1, Java 17, Android SDK 35 y Build Tools 36.0.0. Para compilar desde esa carpeta: `./gradlew assembleDebug` o `gradlew.bat assembleDebug` en Windows.
 
-Los cambios en `android/` enviados a `main` ejecutan la compilaci�n, el an�lisis de Android y la publicaci�n de un APK de demostraci�n en GitHub Releases. Tambi�n se puede ejecutar **Publicar Android** desde la pesta�a Actions.
+Los cambios en `android/` enviados a `main` ejecutan la compilación y el análisis de Android. El APK queda como artefacto en Actions; las versiones para descargar se publican en Releases. También se puede ejecutar **Compilar Android** desde Actions.
 
 ## Planteamiento del proyecto
 
