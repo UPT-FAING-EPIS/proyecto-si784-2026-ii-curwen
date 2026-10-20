@@ -1,0 +1,870 @@
+[30/09/26, 9:19:42 p. m.] Adriana Laos: @startuml C4_Nivel1_Contexto
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+LAYOUT_WITH_LEGEND()
+title Nivel 1 - Diagrama de Contexto del Sistema - TARE·IA
+
+Person(estudiante, "Estudiante EPIS-UPT", "Importa o comparte apuntes, valida las actividades detectadas por la IA, configura cursos/horario y consulta su seguimiento académico.")
+
+System(tareia, "TARE·IA", "Solución móvil Android que interpreta apuntes y documentos académicos mediante IA/OCR multimodal y los convierte en actividades, planes de estudio, alertas y eventos de calendario.")
+
+System_Ext(apps_notas, "Apps de notas y archivos", "Goodnotes, Notability, OneNote, visor PDF, galería. Origen de PDFs, imágenes, capturas y texto.")
+System_Ext(google_id, "Google Identity (OAuth 2.0)", "Inicio de sesión con cuenta Google y consentimiento de acceso al calendario.")
+System_Ext(google_cal, "Google Calendar API", "Calendario del estudiante donde se registran los eventos confirmados.")
+System_Ext(ia_ext, "Servicio externo de IA multimodal", "Modelo de lenguaje/visión en la nube para OCR, extracción de parámetros y generación de planes.")
+System_Ext(android, "Sistema operativo Android", "Selector de archivos, función Compartir, permisos y notificaciones locales.")
+
+Rel(estudiante, tareia, "Importa apuntes, valida actividades, consulta seguimiento", "App móvil")
+Rel(estudiante, apps_notas, "Toma apuntes y exporta/comparte contenido")
+Rel(apps_notas, android, "Comparte contenido", "Intent ACTION_SEND")
+Rel(android, tareia, "Entrega archivos/contenido, concede permisos, muestra alertas")
+Rel(tareia, google_id, "Autentica al estudiante y solicita autorización", "OAuth 2.0 / HTTPS")
+Rel(tareia, google_cal, "Crea, actualiza y elimina eventos confirmados", "REST / HTTPS")
+Rel(tareia, ia_ext, "Envía contenido y contexto académico; recibe texto, parámetros y planes", "REST / HTTPS + JSON")
+
+@enduml
+[30/09/26, 9:20:04 p. m.] Adriana Laos: @startuml C4_Nivel2_Contenedores
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+LAYOUT_WITH_LEGEND()
+title Nivel 2 - Diagrama de Contenedores - TARE·IA
+
+Person(estudiante, "Estudiante EPIS-UPT", "Usuario único del sistema.")
+
+System_Boundary(tareia, "TARE·IA") {
+  Container(app, "Aplicación Móvil Android", "Kotlin, Jetpack Compose, MVVM", "Interfaz del estudiante: importación, validación, actividades, planificación, seguimiento, organización y configuración. Programa alertas locales.")
+  ContainerDb(bd_local, "Base de Datos Local", "Room (SQLite)", "Caché de actividades, cursos y planes para consulta sin conexión; cola de importaciones pendientes.")
+  Container(api, "API Backend", "Python, FastAPI (REST)", "Lógica de negocio: actividades, validación, reglas RN01-RN21, duplicados, papelera, sincronización con Google Calendar.")
+  Container(motor_ia, "Motor de Agentes IA", "Python (worker asíncrono)", "Orquesta los agentes de OCR, extracción, clasificación y planificación. Desacoplado del proveedor de IA (RNF-06).")
+  ContainerQueue(cola, "Cola de Trabajos", "Redis", "Encola los procesamientos largos (OCR/IA) y publica su estado de avance.")
+  ContainerDb(bd, "Base de Datos", "PostgreSQL", "Estudiantes, cursos, contenidos, actividades, planes, eventos, alertas, papelera e historial de cambios.")
+  ContainerDb(storage, "Almacenamiento de Archivos", "Object Storage (cifrado)", "Guarda temporalmente PDFs e imágenes importadas mientras se procesan.")
+}
+
+System_Ext(android, "Sistema operativo Android", "Selector de archivos, Compartir, permisos, notificaciones.")
+System_Ext(google_id, "Google Identity (OAuth 2.0)", "Autenticación y consentimiento.")
+System_Ext(google_cal, "Google Calendar API", "Calendario del estudiante.")
+System_Ext(ia_ext, "Servicio externo de IA multimodal", "OCR, extracción y planificación.")
+
+Rel(estudiante, app, "Usa", "Pantalla táctil")
+Rel(android, app, "Entrega contenido compartido/seleccionado; muestra notificaciones", "Intents / SAF")
+Rel(app, bd_local, "Lee y escribe", "Room DAO")
+Rel(app, google_id, "Inicia sesión con Google", "Google Sign-In / OAuth 2.0")
+Rel(app, api, "Consume", "REST / HTTPS + JSON (token)")
+Rel(api, google_id, "Valida tokens e intercambia código de autorización", "OAuth 2.0")
+Rel(api, bd, "Lee y escribe", "SQL / TLS")
+Rel(api, storage, "Sube y elimina archivos", "HTTPS")
+Rel(api, cola, "Encola trabajos y consulta estado", "Redis protocol")
+Rel(motor_ia, cola, "Toma trabajos y publica avance", "Redis protocol")
+Rel(motor_ia, storage, "Lee archivos a procesar", "HTTPS")
+Rel(motor_ia, bd, "Registra texto reconocido y parámetros extraídos", "SQL / TLS")
+Rel(motor_ia, ia_ext, "Solicita OCR, extracción y planes", "REST / HTTPS + JSON")
+Rel(api, google_cal, "Crea/actualiza/elimina eventos", "REST / HTTPS")
+
+@enduml
+[30/09/26, 9:20:16 p. m.] Adriana Laos: @startuml C4_Nivel3_Componentes_App
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_WITH_LEGEND()
+title Nivel 3 - Componentes de la Aplicación Móvil Android - TARE·IA
+
+Person(estudiante, "Estudiante")
+System_Ext(android, "Sistema operativo Android", "SAF, Intents, permisos, AlarmManager, NotificationManager")
+System_Ext(google_id, "Google Identity", "Google Sign-In")
+Container(api, "API Backend", "FastAPI", "Lógica de negocio")
+
+Container_Boundary(app, "Aplicación Móvil Android") {
+  Component(ui_auth, "Módulo de Autenticación", "Compose + ViewModel", "Inicio y cierre de sesión con Google (RF-01).")
+  Component(ui_ingesta, "Módulo de Ingesta", "Compose + ViewModel", "Importar archivos con el selector y recibir contenido compartido; muestra progreso del análisis (RF-15, RF-22, RNF-02).")
+  Component(ui_valid, "Módulo de Validación", "Compose + ViewModel", "Formulario para confirmar o corregir los parámetros detectados (RF-05, RN01, RN05).")
+  Component(ui_act, "Módulo de Actividades", "Compose + ViewModel", "Creación manual y edición de actividades (RF-06, RF-11).")
+  Component(ui_plan, "Módulo de Planificación", "Compose + ViewModel", "Generar, revisar y confirmar planes; replanificación y sincronización (RF-07, RF-08, RF-19).")
+  Component(ui_seg, "Módulo de Seguimiento (Dashboard)", "Compose + ViewModel", "Actividades próximas, pendientes de validar y completadas, filtrables por curso (RF-10).")
+  Component(ui_org, "Módulo de Organización", "Compose + ViewModel", "Carpetas, Sin clasificar, Papelera y Anotaciones (RF-16, RF-20, RF-21, RF-23).")
+  Component(ui_conf, "Módulo de Configuración", "Compose + ViewModel", "Perfil, cursos, horario, preferencias de estudio, vinculación con Google Calendar y permisos (RF-02, RF-12, RF-13, RF-14, RF-17, RF-18).")
+  Component(notif, "Gestor de Notificaciones Locales", "AlarmManager / WorkManager", "Programa, actualiza y cancela alertas tempranas (RF-09, RN08, RN21).")
+  Component(perm, "Gestor de Permisos", "Activity Result API", "Solicita solo los permisos necesarios en el momento de uso (RN03).")
+  Component(repos, "Repositorios", "Kotlin (patrón Repository)", "Única fuente de datos para los ViewModels: combina caché local y API.")
+  Component(sync_local, "Cola de Envíos Pendientes", "WorkManager", "Reintenta importaciones y cambios cuando vuelve la conexión.")
+  Component(api_client, "Cliente API", "Retrofit + OkHttp", "Llamadas REST seguras con token; manejo de errores (RNF-04, RNF-12).")
+  ComponentDb(room, "BD Local", "Room (SQLite)", "Caché offline y cola de pendientes.")
+}
+
+Rel(estudiante, ui_seg, "Usa")
+Rel(android, ui_ingesta, "Entrega contenido", "SAF / ACTION_SEND")
+Rel(ui_auth, google_id, "Inicia sesión", "Google Sign-In")
+Rel(ui_auth, repos, "Registra sesión")
+Rel(ui_ingesta, repos, "Envía contenido y consulta estado")
+Rel(ui_valid, repos, "Confirma parámetros")
+Rel(ui_act, repos, "CRUD de actividades")
+Rel(ui_plan, repos, "Solicita y confirma planes")
+Rel(ui_seg, repos, "Consulta actividades y planes")
+Rel(ui_org, repos, "Gestiona carpetas, papelera, anotaciones")
+Rel(ui_conf, repos, "Guarda configuración")
+Rel(ui_conf, perm, "Solicita permisos")
+Rel(perm, android, "Pide autorización", "Runtime permissions")
+Rel(repos, notif, "Programa alertas al confirmar/editar/eliminar actividades")
+Rel(notif, android, "Programa notificaciones", "AlarmManager")
+Rel(repos, room, "Lee/escribe")
+Rel(repos, api_client, "Usa")
+Rel(repos, sync_local, "Encola si no hay conexión")
+Rel(sync_local, api_client, "Reintenta")
+Rel(api_client, api, "REST", "HTTPS + JSON")
+
+@enduml
+[30/09/26, 9:20:29 p. m.] Adriana Laos: @startuml C4_Nivel3_Componentes_API
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_WITH_LEGEND()
+title Nivel 3 - Componentes de la API Backend - TARE·IA
+
+Container(app, "Aplicación Móvil Android", "Kotlin", "Cliente del estudiante")
+ContainerDb(bd, "Base de Datos", "PostgreSQL")
+ContainerDb(storage, "Almacenamiento de Archivos", "Object Storage")
+ContainerQueue(cola, "Cola de Trabajos", "Redis")
+System_Ext(google_id, "Google Identity", "OAuth 2.0")
+System_Ext(google_cal, "Google Calendar API")
+
+Container_Boundary(api, "API Backend (FastAPI)") {
+  Component(c_auth, "Controlador de Autenticación", "FastAPI Router", "/auth: login con token de Google, sesión, vinculación de calendario.")
+  Component(c_cont, "Controlador de Contenido", "FastAPI Router", "/contenidos: importar, estado de procesamiento, sin clasificar, carpetas.")
+  Component(c_act, "Controlador de Actividades", "FastAPI Router", "/actividades: validación, creación manual, estados, seguimiento.")
+  Component(c_plan, "Controlador de Planificación", "FastAPI Router", "/planes: generar, confirmar, replanificar, sincronizar.")
+  Component(c_conf, "Controlador de Configuración", "FastAPI Router", "/perfil, /cursos, /horario, /preferencias.")
+  Component(c_org, "Controlador de Organización", "FastAPI Router", "/papelera, /anotaciones.")
+
+  Component(s_auth, "Gestor de Autenticación", "Servicio", "Valida el ID token de Google y emite el token de sesión (RNF-01).")
+  Component(s_cont, "Gestor de Procesamiento de Contenido", "Servicio", "Valida formato (RN10), guarda el archivo y encola el análisis.")
+  Component(s_clasif, "Gestor de Clasificación de Contenido", "Servicio", "Asigna carpetas por curso o envía a Sin clasificar (RN13).")
+  Component(s_valid, "Gestor de Validación de Actividades", "Servicio", "Aplica RN01, RN05 y RN09: Pendiente de validar -> Confirmada.")
+  Component(s_act, "Gestor de Actividades", "Servicio", "Creación manual, edición, estados y trazabilidad de cambios (RF-06, RNF-14).")
+  Component(s_dup, "Verificador de Duplicados", "Servicio", "Compara título + curso + fecha límite (RN02, RN06).")
+  Component(s_plan, "Gestor de Planes de Estudio", "Servicio", "Solicita planes y replanificaciones al motor IA; exige confirmación (RN16-RN19).")
+  Component(s_sync, "Gestor de Sincronización con Calendario", "Servicio", "Crea/actualiza eventos en Google Calendar si hay autorización (RN07).")
+  Component(s_conf, "Gestor de Configuración Académica", "Servicio", "Perfil, cursos con abreviatura única (RN12), horario y preferencias.")
+  Component(s_pap, "Gestor de Papelera", "Servicio", "Eliminación lógica, restauración y borrado definitivo (RN14, RN15).")
+  Component(repo, "Capa de Repositorios", "SQLAlchemy", "Acceso a datos por entidad.")
+  Component(gcal_adapter, "Adaptador Google Calendar", "google-api-python-client", "Encapsula llamadas, reintentos y tokens cifrados.")
+}
+
+Rel(app, c_auth, "Usa", "HTTPS/JSON")
+Rel(app, c_cont, "Usa", "HTTPS/JSON")
+Rel(app, c_act, "Usa", "HTTPS/JSON")
+Rel(app, c_plan, "Usa", "HTTPS/JSON")
+Rel(app, c_conf, "Usa", "HTTPS/JSON")
+Rel(app, c_org, "Usa", "HTTPS/JSON")
+
+Rel(c_auth, s_auth, "Usa")
+Rel(c_cont, s_cont, "Usa")
+Rel(c_cont, s_clasif, "Usa")
+Rel(c_act, s_valid, "Usa")
+Rel(c_act, s_act, "Usa")
+Rel(c_plan, s_plan, "Usa")
+Rel(c_plan, s_sync, "Usa")
+Rel(c_conf, s_conf, "Usa")
+Rel(c_org, s_pap, "Usa")
+
+Rel(s_valid, s_dup, "Verifica")
+Rel(s_act, s_dup, "Verifica")
+Rel(s_sync, s_dup, "Verifica evento existente")
+Rel(s_sync, gcal_adapter, "Usa")
+Rel(s_plan, cola, "Encola generación de plan")
+Rel(s_cont, cola, "Encola análisis")
+Rel(s_cont, storage, "Guarda archivo")
+Rel(s_auth, google_id, "Valida token", "OAuth 2.0")
+Rel(gcal_adapter, google_cal, "Eventos", "REST/HTTPS")
+
+Rel(s_auth, repo, "Usa")
+Rel(s_cont, repo, "Usa")
+Rel(s_clasif, repo, "Usa")
+Rel(s_valid, repo, "Usa")
+Rel(s_act, repo, "Usa")
+Rel(s_plan, repo, "Usa")
+Rel(s_sync, repo, "Usa")
+Rel(s_conf, repo, "Usa")
+Rel(s_pap, repo, "Usa")
+Rel(repo, bd, "SQL", "TLS")
+
+@enduml
+[30/09/26, 9:20:40 p. m.] Adriana Laos: @startuml C4_Nivel3_Componentes_MotorIA
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_WITH_LEGEND()
+title Nivel 3 - Componentes del Motor de Agentes IA - TARE·IA
+
+ContainerQueue(cola, "Cola de Trabajos", "Redis")
+ContainerDb(bd, "Base de Datos", "PostgreSQL")
+ContainerDb(storage, "Almacenamiento de Archivos", "Object Storage")
+System_Ext(ia_ext, "Servicio externo de IA multimodal", "Proveedor intercambiable")
+
+Container_Boundary(motor, "Motor de Agentes IA (worker Python)") {
+  Component(consumidor, "Consumidor de Trabajos", "Worker", "Toma trabajos de la cola, reporta progreso y reintenta ante fallos (RNF-02, RNF-12).")
+  Component(orq, "Orquestador de Agentes", "Python", "Ejecuta la secuencia: tipo de contenido -> OCR -> extracción -> clasificación, o la planificación.")
+  Component(ag_ocr, "Agente OCR Multimodal", "Python", "Obtiene texto de PDFs e imágenes; omite OCR si el contenido ya es texto (RF-03).")
+  Component(ag_ext, "Agente Extractor de Parámetros", "Python", "Identifica curso, título, tipo, fecha y hora usando los cursos del estudiante como contexto; marca campos faltantes, sin inventarlos (RF-04).")
+  Component(ag_clas, "Agente Clasificador", "Python", "Relaciona el contenido con un curso por nombre/abreviatura (RF-16, RN13).")
+  Component(ag_plan, "Agente Planificador", "Python", "Divide proyectos en bloques de estudio según horario, prioridad del curso y fecha límite (RF-07, RF-19, RN16-RN19).")
+  Component(ctx, "Proveedor de Contexto Académico", "Python", "Carga cursos, horario y preferencias del estudiante.")
+  Component(prompts, "Gestor de Prompts y Esquemas", "Python + JSON Schema", "Plantillas de instrucciones y validación de la respuesta estructurada.")
+  Component(puerto, "Puerto de Proveedor IA", "Interfaz (Adapter)", "Abstrae al proveedor de IA/OCR para poder sustituirlo (RNF-06).")
+  Component(resultados, "Registrador de Resultados", "SQLAlchemy", "Guarda texto reconocido, parámetros y propuestas en estado pendiente (RN09).")
+}
+
+Rel(consumidor, cola, "Toma trabajos / publica avance")
+Rel(consumidor, orq, "Despacha")
+Rel(orq, ag_ocr, "1. Reconocer")
+Rel(orq, ag_ext, "2. Extraer")
+Rel(orq, ag_clas, "3. Clasificar")
+Rel(orq, ag_plan, "Planificar")
+Rel(ag_ocr, storage, "Lee archivo")
+Rel(ag_ext, ctx, "Pide cursos")
+Rel(ag_clas, ctx, "Pide cursos")
+Rel(ag_plan, ctx, "Pide horario y preferencias")
+Rel(ag_ocr, puerto, "Usa")
+Rel(ag_ext, puerto, "Usa")
+Rel(ag_plan, puerto, "Usa")
+Rel(ag_ext, prompts, "Usa")
+Rel(ag_plan, prompts, "Usa")
+Rel(puerto, ia_ext, "Invoca", "REST/HTTPS + JSON")
+Rel(orq, resultados, "Guarda resultados")
+Rel(ctx, bd, "Lee", "SQL")
+Rel(resultados, bd, "Escribe", "SQL")
+
+@enduml
+[30/09/26, 9:20:53 p. m.] Adriana Laos: @startuml C4_Nivel4_Codigo_MotorIA
+title Nivel 4 - Código: Motor de Agentes IA (patrones Strategy, Template Method y Adapter) - TARE·IA
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+set separator none
+left to right direction
+hide empty members
+
+package "motor_ia.trabajos" {
+  class ConsumidorTrabajos {
+    - cola : ClienteCola
+    - orquestador : OrquestadorAgentes
+    - maxReintentos : int = 3
+    + escuchar() : void
+    + reportarProgreso(trabajoId : UUID, porcentaje : int) : void
+    - reintentar(trabajo : TrabajoProcesamiento) : void
+  }
+  class TrabajoProcesamiento <<dataclass>> {
+    + id : UUID
+    + estudianteId : UUID
+    + tipo : TipoTrabajo
+    + referenciaId : UUID
+    + estado : EstadoTrabajo
+    + progreso : int
+    + intentos : int
+    + mensajeError : str
+  }
+  enum TipoTrabajo {
+    ANALIZAR_CONTENIDO
+    GENERAR_PLAN
+    REORGANIZAR_PLAN
+  }
+  enum EstadoTrabajo {
+    EN_COLA
+    EN_PROCESO
+    COMPLETADO
+    FALLIDO
+  }
+}
+
+package "motor_ia.agentes" {
+  class OrquestadorAgentes {
+    - agenteOCR : AgenteOCR
+    - agenteExtractor : AgenteExtractor
+    - agenteClasificador : AgenteClasificador
+    - agentePlanificador : AgentePlanificador
+    - registrador : RegistradorResultados
+    + procesarContenido(t : TrabajoProcesamiento) : void
+    + generarPlan(t : TrabajoProcesamiento) : void
+    + reorganizarPlan(t : TrabajoProcesamiento) : void
+  }
+  abstract class Agente {
+    # proveedor : ProveedorIA
+    # prompts : GestorPrompts
+    + ejecutar(ctx : ContextoAgente) : ResultadoAgente
+    # {abstract} preparar(ctx : ContextoAgente) : Prompt
+    # {abstract} interpretar(respuesta : dict) : ResultadoAgente
+  }
+  class AgenteOCR {
+    + requiereOCR(tipo : TipoContenido) : bool
+    # preparar(ctx) : Prompt
+    # interpretar(respuesta) : ResultadoOCR
+  }
+  class AgenteExtractor {
+    # preparar(ctx) : Prompt
+    # interpretar(respuesta) : ParametrosAcademicos
+    - marcarCamposFaltantes(p : ParametrosAcademicos) : void
+  }
+  class AgenteClasificador {
+    + clasificar(texto : str, cursos : list[CursoContexto]) : CursoContexto | None
+    # preparar(ctx) : Prompt
+    # interpretar(respuesta) : ResultadoAgente
+  }
+  class AgentePlanificador {
+    # preparar(ctx) : Prompt
+    # interpretar(respuesta) : PropuestaPlan
+    - detectarConflictos(p : PropuestaPlan, horario : HorarioContexto) : list[str]
+  }
+  class ContextoAgente <<dataclass>> {
+    + trabajo : TrabajoProcesamiento
+    + texto : str
+    + archivo : bytes
+    + mimeType : str
+    + cursos : list[CursoContexto]
+    + horario : HorarioContexto
+    + preferencias : PreferenciasContexto
+  }
+}
+
+package "motor_ia.resultados" {
+  abstract class ResultadoAgente {
+    + exitoso : bool
+    + confianza : float
+  }
+  class ResultadoOCR {
+    + texto : str
+    + paginas : int
+  }
+  class ParametrosAcademicos {
+    + curso : str
+    + titulo : str
+    + tipo : str
+    + fechaLimite : datetime
+    + camposFaltantes : list[str]
+    + tieneDatosMinimos() : bool
+  }
+  class PropuestaPlan {
+    + bloques : list[BloquePropuesto]
+    + conflictos : list[str]
+  }
+  class BloquePropuesto {
+    + inicio : datetime
+    + fin : datetime
+    + descripcion : str
+  }
+  class RegistradorResultados {
+    + guardarTexto(contenidoId : UUID, r : ResultadoOCR) : void
+    + guardarActividadPendiente(contenidoId : UUID, p : ParametrosAcademicos) : void
+    + enviarASinClasificar(contenidoId : UUID) : void
+    + guardarPropuestaPlan(actividadId : UUID, p : PropuestaPlan) : void
+  }
+}
+
+package "motor_ia.contexto" {
+  class ProveedorContextoAcademico {
+    + obtenerCursos(estudianteId : UUID) : list[CursoContexto]
+    + obtenerHorario(estudianteId : UUID) : HorarioContexto
+    + obtenerPreferencias(estudianteId : UUID) : PreferenciasContexto
+  }
+  class GestorPrompts {
+    + construir(tipo : TipoTrabajo, ctx : ContextoAgente) : Prompt
+    + validarRespuesta(json : dict, esquema : EsquemaJSON) : bool
+  }
+}
+
+package "motor_ia.proveedores" {
+  interface ProveedorIA {
+    + reconocerTexto(archivo : bytes, mimeType : str) : dict
+    + generarEstructurado(prompt : Prompt, esquema : EsquemaJSON) : dict
+  }
+  class AdaptadorProveedorA {
+    - apiKey : SecretStr
+    - modelo : str
+  }
+  class AdaptadorProveedorB {
+    - apiKey : SecretStr
+    - modelo : str
+  }
+  class FabricaProveedorIA {
+    + {static} crear(config : ConfigIA) : ProveedorIA
+  }
+}
+
+ConsumidorTrabajos --> OrquestadorAgentes
+ConsumidorTrabajos ..> TrabajoProcesamiento
+TrabajoProcesamiento --> TipoTrabajo
+TrabajoProcesamiento --> EstadoTrabajo
+OrquestadorAgentes *-- AgenteOCR
+OrquestadorAgentes *-- AgenteExtractor
+OrquestadorAgentes *-- AgenteClasificador
+OrquestadorAgentes *-- AgentePlanificador
+OrquestadorAgentes --> RegistradorResultados
+OrquestadorAgentes --> ProveedorContextoAcademico
+Agente <|-- AgenteOCR
+Agente <|-- AgenteExtractor
+Agente <|-- AgenteClasificador
+Agente <|-- AgentePlanificador
+Agente --> ProveedorIA
+Agente --> GestorPrompts
+Agente ..> ContextoAgente
+Agente ..> ResultadoAgente
+ResultadoAgente <|-- ResultadoOCR
+ResultadoAgente <|-- ParametrosAcademicos
+ResultadoAgente <|-- PropuestaPlan
+PropuestaPlan -- "1.." BloquePropuesto
+ProveedorIA <|.. AdaptadorProveedorA
+ProveedorIA <|.. AdaptadorProveedorB
+FabricaProveedorIA ..> ProveedorIA : crea
+ConsumidorTrabajos -[hidden]down- OrquestadorAgentes
+Agente -[hidden]down- ResultadoAgente
+
+note right of ProveedorIA
+  RNF-06: cambiar de proveedor de IA/OCR
+  solo requiere un nuevo adaptador;
+  agentes y orquestador no cambian.
+end note
+note bottom of AgenteExtractor
+  RF-04: no inventa parámetros.
+  Si falta título o fecha límite,
+  la actividad queda "Pendiente de
+  validar" (RN05, RN09).
+end note
+@enduml
+[30/09/26, 9:21:06 p. m.] Adriana Laos: @startuml Diagrama_Clases_Dominio
+title Diagrama de Clases - Modelo de Dominio - TARE·IA
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam nodesep 50
+skinparam ranksep 60
+hide empty members
+
+package "Administración del Estudiante" {
+  class Estudiante {
+    - id : UUID
+    - googleId : String
+    - correo : String
+    - nombre : String
+    - activo : boolean
+    - fechaRegistro : LocalDateTime
+    + iniciarSesion() : void
+    + cerrarSesion() : void
+    + estaActivo() : boolean
+  }
+  class PerfilEstudiante {
+    - fotoUrl : String
+    - carrera : String
+    - ciclo : int
+    - zonaHoraria : String
+    + actualizar(datos : PerfilDTO) : void
+  }
+  class VinculacionCalendario {
+    - calendarioId : String
+    - refreshTokenCifrado : String
+    - alcances : List<String>
+    - estado : EstadoVinculacion
+    - fechaVinculacion : LocalDateTime
+    + estaAutorizada() : boolean
+    + revocar() : void
+  }
+  class Curso {
+    - id : UUID
+    - nombre : String
+    - abreviatura : String
+    - nivelPrioridad : NivelPrioridad
+    - color : String
+    - activo : boolean
+    + actualizar(datos : CursoDTO) : void
+    + coincideCon(texto : String) : boolean
+    + enviarAPapelera() : void
+  }
+  class HorarioAcademico {
+    - id : UUID
+    - vigenteDesde : LocalDate
+    + agregarBloque(b : BloqueHorario) : void
+    + quitarBloque(b : BloqueHorario) : void
+    + hayConflicto() : boolean
+    + franjasDisponibles(desde : LocalDateTime, hasta : LocalDateTime) : List<Intervalo>
+  }
+  class BloqueHorario {
+    - diaSemana : DayOfWeek
+    - horaInicio : LocalTime
+    - horaFin : LocalTime
+    - tipo : TipoBloqueHorario
+    - descripcion : String
+    + esValido() : boolean
+    + seSuperponeCon(otro : BloqueHorario) : boolean
+  }
+  class PreferenciasEstudio {
+    - duracionBloqueMin : int
+    - franjaPreferida : FranjaDia
+    - diasAnticipacion : int
+    - maxHorasDiarias : int
+    + restablecer() : void
+    + esCompatible() : boolean
+  }
+}
+
+package "Organización Académica" {
+  class Carpeta {
+    - id : UUID
+    - nombre : String
+    + agregarContenido(c : ContenidoAcademico) : void
+  }
+  class ContenidoAcademico {
+    - id : UUID
+    - tipo : TipoContenido
+    - origen : OrigenContenido
+    - nombreArchivo : String
+    - rutaArchivo : String
+    - mimeType : String
+    - tamanoBytes : long
+    - textoReconocido : String
+    - estado : EstadoProcesamiento
+    - fechaRecepcion : LocalDateTime
+    + requiereOCR() : boolean
+    + esFormatoValido() : boolean
+    + marcarSinClasificar() : void
+    + asignarCarpeta(c : Carpeta) : void
+    + enviarAPapelera() : void
+  }
+  class ActividadAcademica {
+    - id : UUID
+    - titulo : String
+    - descripcion : String
+    - tipo : TipoActividad
+    - fechaLimite : LocalDateTime
+    - estado : EstadoActividad
+    - origen : OrigenActividad
+    - camposPorRevisar : List<String>
+    + tieneDatosMinimos() : boolean
+    + confirmar() : void
+    + completar() : void
+    + modificar(datos : ActividadDTO) : CambioActividad
+    + esDuplicadaDe(otra : ActividadAcademica) : boolean
+  }
+  class CambioActividad {
+    - id : UUID
+    - campo : String
+    - valorAnterior : String
+    - valorNuevo : String
+    - origenCambio : OrigenCambio
+    - fecha : LocalDateTime
+  }
+  class PlanificacionAcademica {
+    - id : UUID
+    - estado : EstadoPlan
+    - version : int
+    - fechaGeneracion : LocalDateTime
+    + confirmar() : void
+    + reemplazarPor(nuevo : PlanificacionAcademica) : void
+    + tieneConflictos() : boolean
+  }
+  class BloqueEstudio {
+    - id : UUID
+    - inicio : LocalDateTime
+    - fin : LocalDateTime
+    - descripcion : String
+    - completado : boolean
+    + duracionMinutos() : int
+    + reprogramar(inicio : LocalDateTime, fin : LocalDateTime) : void
+  }
+  class EventoCalendario {
+    - id : UUID
+    - googleEventId : String
+    - estadoSync : EstadoSincronizacion
+    - ultimaSincronizacion : LocalDateTime
+    + marcarSincronizado(googleEventId : String) : void
+    + marcarError() : void
+  }
+  class Alerta {
+    - id : UUID
+    - fechaHoraProgramada : LocalDateTime
+    - anticipacionMin : int
+    - activa : boolean
+    - idNotificacionLocal : int
+    + esProgramable() : boolean
+    + reprogramar(nuevaFechaLimite : LocalDateTime) : void
+    + cancelar() : void
+  }
+  class Anotacion {
+    - id : UUID
+    - contenido : String
+    - fechaCreacion : LocalDateTime
+    - fechaModificacion : LocalDateTime
+    + editar(texto : String) : void
+    + esValida() : boolean
+  }
+  class ElementoPapelera {
+    - id : UUID
+    - tipoElemento : TipoElementoPapelera
+    - elementoId : UUID
+    - ubicacionOrigen : String
+    - fechaEliminacion : LocalDateTime
+    + restaurar() : void
+    + eliminarDefinitivamente() : void
+  }
+}
+
+' ---------- Relaciones ----------
+Estudiante "1" *-- "1" PerfilEstudiante
+Estudiante "1" *-- "0..1" VinculacionCalendario
+Estudiante "1" -- "0.." Curso
+Estudiante "1" *-- "0..1" HorarioAcademico
+Estudiante "1" *-- "1" PreferenciasEstudio
+Estudiante "1" o-- "0..*" ContenidoAcademico
+Estudiante "1" o-- "0..*" ActividadAcademica
+Estudiante "1" o-- "0..*" Anotacion
+Estudiante "1" o-- "0..*" ElementoPapelera
+
+HorarioAcademico "1" -- "0.." BloqueHorario
+Curso "1" -- "1" Carpeta : se organiza en >
+Carpeta "0..1" o-- "0..*" ContenidoAcademico
+Curso "0..1" -- "0..*" ActividadAcademica : agrupa >
+ContenidoAcademico "1" -- "0..*" ActividadAcademica : origina >
+ActividadAcademica "1" -- "0.." CambioActividad : trazabilidad >
+ActividadAcademica "1" -- "0..1" PlanificacionAcademica : planifica <
+PlanificacionAcademica "1" -- "1.." BloqueEstudio
+ActividadAcademica "1" -- "0..1" EventoCalendario : sincroniza >
+BloqueEstudio "1" -- "0..1" EventoCalendario : sincroniza >
+ActividadAcademica "1" -- "0.." Alerta
+Anotacion "0..*" --> "0..1" ActividadAcademica : vinculada a
+Anotacion "0..*" --> "0..1" Curso : vinculada a
+
+note bottom of ActividadAcademica
+  RN05/RN09: nace como PENDIENTE_VALIDAR si viene de IA;
+  pasa a CONFIRMADA solo con título y fecha límite.
+  RN02/RN06: duplicada = mismo título + curso + fecha límite.
+end note
+note bottom of Curso
+  RN12: abreviatura única entre cursos activos.
+  RN04: nivelPrioridad se usa para repartir horas de estudio.
+end note
+note bottom of Alerta
+  RN08: solo se programa si la fecha es futura.
+  RN21: se reprograma o cancela al cambiar o borrar la actividad.
+end note
+@enduml
+[30/09/26, 9:21:19 p. m.] Adriana Laos: @startuml Diagrama_Clases_Control
+title Diagrama de Clases - Capa de Control (Gestores del SRS) e Interfaces de Servicio - TARE·IA
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam nodesep 30
+skinparam ranksep 50
+hide empty members
+left to right direction
+
+package "Administración del Estudiante" {
+  class GestorInicioSesion <<control>> {
+    + enviarCredenciales(tokenGoogle : String) : Sesion
+    + cerrarSesion() : void
+  }
+  class GestorConexionGoogleCalendar <<control>> {
+    + enviarSolicitudDeVinculacion(codigoAuth : String) : VinculacionCalendario
+    + revocarVinculacion() : void
+  }
+  class GestorPermisosDispositivo <<control>> {
+    + enviarSolicitudDePermisos() : List<EstadoPermiso>
+    + enviarSolicitudDeAutorizacion(permiso : Permiso) : boolean
+  }
+  class GestorPerfilEstudiante <<control>> {
+    + enviarSolicitudDePerfil() : PerfilEstudiante
+    + enviarCambiosDelPerfil(datos : PerfilDTO) : PerfilEstudiante
+  }
+  class GestorCursos <<control>> {
+    + enviarSolicitudDeCursos() : List<Curso>
+    + enviarDatosDelCurso(datos : CursoDTO) : Curso
+    + enviarCambiosDelCurso(id : UUID, datos : CursoDTO) : Curso
+  }
+  class GestorHorarioAcademico <<control>> {
+    + enviarSolicitudDeHorario() : HorarioAcademico
+    + enviarCambiosDelHorario(bloques : List<BloqueHorario>) : HorarioAcademico
+  }
+  class GestorPreferenciasEstudio <<control>> {
+    + enviarSolicitudDePreferencias() : PreferenciasEstudio
+    + enviarCambiosDePreferencias(p : PreferenciasDTO) : PreferenciasEstudio
+  }
+}
+
+package "Organización Académica - Ingesta y Clasificación" {
+  class GestorImportacionContenido <<control>> {
+    + enviarContenidoImportado(archivo : ArchivoDTO) : ContenidoAcademico
+  }
+  class GestorContenidoCompartido <<control>> {
+    + enviarContenidoRecibido(contenido : ContenidoDTO) : ContenidoAcademico
+  }
+  class GestorProcesamientoContenido <<control>> {
+    + enviarSolicitudDeProcesamiento(contenidoId : UUID) : TrabajoProcesamiento
+    + consultarEstado(trabajoId : UUID) : TrabajoProcesamiento
+  }
+  class GestorAnalisisInformacionAcademica <<control>> {
+    + enviarSolicitudDeAnalisis(contenidoId : UUID) : List<ActividadAcademica>
+  }
+  class GestorClasificacionContenido <<control>> {
+    + enviarSolicitudDeClasificacion(contenidoId : UUID) : Carpeta
+    + enviarConfirmacionDeCarpeta(contenidoId : UUID, carpetaId : UUID) : void
+  }
+  class GestorContenidoPendienteClasificacion <<control>> {
+    + enviarSolicitudDeContenidoPendiente() : List<ContenidoAcademico>
+    + enviarInformacionCompletada(id : UUID, datos : ContenidoDTO) : ContenidoAcademico
+  }
+}
+
+package "Organización Académica - Actividades y Planificación" {
+  class GestorValidacionActividades <<control>> {
+    + enviarSolicitudDeDatos(actividadId : UUID) : ActividadAcademica
+    + enviarDatosConfirmados(datos : ActividadDTO) : ActividadAcademica
+  }
+  class GestorActividades <<control>> {
+    + enviarSolicitudDeNuevaActividad() : List<Curso>
+    + enviarDatosDeActividad(datos : ActividadDTO) : ActividadAcademica
+  }
+  class GestorVerificacionEventos <<control>> {
+    + enviarSolicitudDeVerificacion(a : ActividadAcademica) : ResultadoVerificacion
+  }
+  class GestorGeneracionPlanesEstudio <<control>> {
+    + enviarSolicitudDePlanificacion(actividadId : UUID) : PlanificacionAcademica
+    + enviarConfirmacionDelPlan(planId : UUID) : PlanificacionAcademica
+  }
+  class GestorReorganizacionPlanEstudio <<control>> {
+    + enviarCambiosDeActividad(datos : ActividadDTO) : PlanificacionAcademica
+    + enviarConfirmacionDelNuevoPlan(planId : UUID) : PlanificacionAcademica
+  }
+  class GestorSincronizacionCalendario <<control>> {
+    + enviarSolicitudDeSincronizacion(actividadId : UUID) : EventoCalendario
+  }
+  class GestorAlertasAcademicas <<control>> {
+    + enviarConfiguracionDeAlerta(cfg : AlertaDTO) : Alerta
+    + actualizarAlertas(a : ActividadAcademica) : void
+  }
+  class GestorSeguimientoAcademico <<control>> {
+    + enviarSolicitudDeSeguimiento(filtro : FiltroSeguimiento) : ResumenSeguimiento
+    + enviarCambioDeEstado(actividadId : UUID, estado : EstadoActividad) : void
+  }
+  class GestorPapelera <<control>> {
+    + enviarSolicitudDeElementosEliminados() : List<ElementoPapelera>
+    + enviarSolicitudDeRestauracion(id : UUID) : void
+    + enviarSolicitudDeEliminacion(id : UUID) : void
+  }
+  class GestorAnotaciones <<control>> {
+    + enviarSolicitudDeAnotaciones() : List<Anotacion>
+    + enviarNuevaAnotacion(a : AnotacionDTO) : Anotacion
+    + enviarCambiosDeAnotacion(id : UUID, a : AnotacionDTO) : Anotacion
+    + enviarSolicitudDeEliminacion(id : UUID) : void
+  }
+}
+
+package "Servicios (interfaces)" {
+  interface ServicioIA {
+    + reconocerTexto(c : ContenidoAcademico) : String
+    + extraerParametros(texto : String, cursos : List<Curso>) : List<ParametrosAcademicos>
+    + generarPlan(a : ActividadAcademica, h : HorarioAcademico, p : PreferenciasEstudio) : PropuestaPlan
+  }
+  interface ServicioCalendario {
+    + crearEvento(e : EventoCalendario) : String
+    + actualizarEvento(e : EventoCalendario) : void
+    + eliminarEvento(googleEventId : String) : void
+  }
+  interface ServicioNotificaciones {
+    + programar(a : Alerta) : int
+    + cancelar(idNotificacion : int) : void
+  }
+  interface Repositorio<T> {
+    + registrar(t : T) : T
+    + consultar(id : UUID) : T
+    + actualizar(t : T) : T
+    + eliminar(id : UUID) : void
+  }
+}
+
+GestorProcesamientoContenido ..> ServicioIA
+GestorAnalisisInformacionAcademica ..> ServicioIA
+GestorGeneracionPlanesEstudio ..> ServicioIA
+GestorReorganizacionPlanEstudio ..> ServicioIA
+GestorSincronizacionCalendario ..> ServicioCalendario
+GestorConexionGoogleCalendar ..> ServicioCalendario
+GestorAlertasAcademicas ..> ServicioNotificaciones
+
+GestorImportacionContenido ..> GestorProcesamientoContenido : inicia
+GestorContenidoCompartido ..> GestorProcesamientoContenido : inicia (RN11)
+GestorProcesamientoContenido ..> GestorAnalisisInformacionAcademica : <<include>> RF-04
+GestorAnalisisInformacionAcademica ..> GestorClasificacionContenido : <<include>> RF-16
+GestorValidacionActividades ..> GestorVerificacionEventos : RN02
+GestorActividades ..> GestorVerificacionEventos : RN02 / RF20
+GestorSincronizacionCalendario ..> GestorVerificacionEventos : <<include>> RF-11
+GestorValidacionActividades ..> GestorAlertasAcademicas : programa alertas
+GestorActividades ..> GestorAlertasAcademicas : programa alertas
+GestorReorganizacionPlanEstudio ..> GestorAlertasAcademicas : RN21
+GestorReorganizacionPlanEstudio ..> GestorSincronizacionCalendario : actualiza eventos
+
+note "Todos los gestores acceden a las entidades\nmediante Repositorio<T> (consultar/registrar/\nactualizar), equivalente al participante\n'Base de Datos' de los diagramas de secuencia." as N1
+@enduml
+[30/09/26, 9:21:31 p. m.] Adriana Laos: @startuml Diagrama_Clases_Enumeraciones
+title Diagrama de Clases - Enumeraciones del Dominio - TARE·IA
+skinparam shadowing false
+hide empty members
+package "Enumeraciones" {
+  enum EstadoActividad {
+    PENDIENTE_VALIDAR
+    CONFIRMADA
+    COMPLETADA
+    EN_PAPELERA
+  }
+  enum TipoActividad {
+    TAREA
+    PROYECTO
+    EXAMEN
+    ENTREGABLE
+    OTRO
+  }
+  enum OrigenActividad {
+    IA
+    MANUAL
+  }
+  enum EstadoProcesamiento {
+    RECIBIDO
+    EN_PROCESO
+    PROCESADO
+    SIN_CLASIFICAR
+    ERROR
+  }
+  enum TipoContenido {
+    PDF
+    IMAGEN_JPG
+    IMAGEN_PNG
+    TEXTO
+  }
+  enum OrigenContenido {
+    IMPORTADO
+    COMPARTIDO
+  }
+  enum EstadoPlan {
+    PROPUESTA
+    CONFIRMADA
+    REEMPLAZADA
+  }
+  enum EstadoSincronizacion {
+    PENDIENTE
+    SINCRONIZADO
+    ERROR
+  }
+  enum NivelPrioridad {
+    BAJA
+    MEDIA
+    ALTA
+  }
+  enum EstadoVinculacion {
+    NO_VINCULADO
+    VINCULADO
+    REVOCADO
+  }
+  enum TipoElementoPapelera {
+    CURSO
+    CONTENIDO
+    ACTIVIDAD
+    ANOTACION
+  }
+  enum OrigenCambio {
+    ESTUDIANTE
+    REPLANIFICACION_IA
+  }
+  enum TipoBloqueHorario {
+    CLASE
+    OCUPADO
+  }
+  enum FranjaDia {
+    MANANA
+    TARDE
+    NOCHE
+  }
+}
+
+@enduml
